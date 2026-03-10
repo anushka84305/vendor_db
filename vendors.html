@@ -1,0 +1,238 @@
+<!DOCTYPE html><html>
+<head><title>Vendor Comparison System</title><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>
+
+body{
+font-family:Arial;
+margin:20px;
+background:linear-gradient(135deg,#74ebd5,#ACB6E5);
+}
+
+h1{
+text-align:center;
+color:#333;
+}
+
+table{
+border-collapse:collapse;
+width:100%;
+background:white;
+box-shadow:0px 4px 10px rgba(0,0,0,0.2);
+}
+
+th,td{
+border:1px solid #ddd;
+padding:10px;
+text-align:center;
+}
+
+th{
+background:#4CAF50;
+color:white;
+}
+
+tr:nth-child(even){
+background:#f9f9f9;
+}
+
+tr:hover{
+background:#e6f7ff;
+}
+
+.best{
+background:#b6ffb6;
+font-weight:bold;
+}
+
+.badge{
+background:#ff5722;
+color:white;
+padding:4px 8px;
+border-radius:5px;
+font-size:12px;
+margin-left:5px;
+}
+
+.btn{
+padding:10px 14px;
+background:#ff9800;
+color:white;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+.btn:hover{
+background:#e68900;
+}
+
+.actions{
+display:flex;
+justify-content:center;
+gap:6px;
+flex-wrap:wrap;
+}
+
+.action{
+padding:6px 10px;
+background:#2196F3;
+color:white;
+border-radius:4px;
+text-decoration:none;
+font-size:14px;
+}
+
+.action:hover{
+background:#0b7dda;
+}
+
+input,select{
+padding:8px;
+border-radius:5px;
+border:1px solid #ccc;
+margin:4px;
+}
+
+</style></head><body><h1>Vendor Comparison System</h1>{% if best %}
+<a href="/vendor/{{best.id}}">
+<button class="btn">Show Lowest Cost Vendor</button>
+</a>
+{% endif %}
+
+<br><br>
+
+<input type="text" id="searchInput" placeholder="Search Vendor"><select id="categoryFilter">
+<option value="">All Categories</option>
+{% for v in vendors %}
+<option value="{{v.category}}">{{v.category}}</option>
+{% endfor %}
+</select><br><br>
+
+<table id="vendorTable"><tr>
+<th>Rank</th>
+<th>Vendor</th>
+<th>Item</th>
+<th>Category</th>
+<th>Price</th>
+<th>GST</th>
+<th>Charges</th>
+<th>Total</th>
+<th>Specifications</th>
+<th>Contact</th>
+<th>Actions</th>
+</tr>{% for v in vendors %}
+
+<tr {% if best and v.id == best.id %}class="best"{% endif %}><td>{{v.rank}}</td><td>
+{{v.vendor_name}}
+{% if best and v.id == best.id %}
+<span class="badge">Best Deal</span>
+{% endif %}
+</td><td>{{v.item}}</td>
+<td>{{v.category}}</td>
+<td>{{v.price}}</td>
+<td>{{v.gst_percent}}</td>
+<td>{{v.additional_charges}}</td>
+<td>{{v.total}}</td>
+<td>{{v.specifications}}</td>
+<td>{{v.contact}}</td><td class="actions">
+<a class="action" href="/vendor/{{v.id}}">View</a>
+<a class="action" href="/download/{{v.id}}">Download</a>
+</td></tr>{% endfor %}
+
+</table><br><br>
+
+<h2>Vendor Price Comparison</h2><canvas id="priceChart"></canvas>
+
+<br><br>
+
+<a href="/add_vendor">
+<button class="btn">Add Vendor</button>
+</a><script>
+
+let searchInput=document.getElementById("searchInput");
+
+searchInput.addEventListener("keyup",function(){
+
+let filter=this.value.toLowerCase();
+
+let rows=document.querySelectorAll("#vendorTable tr");
+
+rows.forEach(function(row){
+
+let text=row.innerText.toLowerCase();
+
+if(text.includes(filter)){
+row.style.display="";
+}else{
+row.style.display="none";
+}
+
+});
+
+});
+
+
+let categoryFilter=document.getElementById("categoryFilter");
+
+categoryFilter.addEventListener("change",function(){
+
+let value=this.value.toLowerCase();
+
+let rows=document.querySelectorAll("#vendorTable tr");
+
+rows.forEach(function(row){
+
+let text=row.innerText.toLowerCase();
+
+if(value=="" || text.includes(value)){
+row.style.display="";
+}else{
+row.style.display="none";
+}
+
+});
+
+});
+
+
+const vendorNames=[
+{% for v in vendors %}
+"{{v.vendor_name}}",
+{% endfor %}
+];
+
+const vendorPrices=[
+{% for v in vendors %}
+{{v.total}},
+{% endfor %}
+];
+
+const ctx=document.getElementById('priceChart');
+
+new Chart(ctx,{
+type:'bar',
+data:{
+labels:vendorNames,
+datasets:[{
+label:'Vendor Price Comparison',
+data:vendorPrices,
+backgroundColor:[
+'#4CAF50',
+'#2196F3',
+'#FF9800',
+'#9C27B0',
+'#E91E63'
+]
+}]
+},
+options:{
+responsive:true,
+plugins:{
+legend:{
+display:true
+}
+}
+}
+});
+
+</script></body>
+</html>

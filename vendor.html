@@ -1,0 +1,40 @@
+<!DOCTYPE html><html>
+<head><title>Vendor Details</title><style>
+
+body{
+font-family:Arial;
+margin:40px;
+background:#f2f2f2;
+}
+
+.box{
+background:white;
+padding:25px;
+border-radius:10px;
+box-shadow:0px 4px 10px rgba(0,0,0,0.2);
+width:400px;
+margin:auto;
+}
+
+h2{
+text-align:center;
+}
+
+p{
+font-size:18px;
+}
+
+.buybtn{
+padding:10px 15px;
+background:green;
+color:white;
+border:none;
+border-radius:5px;
+cursor:pointer;
+font-size:16px;
+}
+
+</style></head><body><div class="box"><h2>Vendor Details</h2><p><b>Vendor:</b> {{vendor.vendor_name}}</p><p><b>Item:</b> {{vendor.item}}</p><p><b>Category:</b> {{vendor.category}}</p><p><b>Total Price:</b> {{vendor.total}}</p><p><b>Specifications:</b> {{vendor.specifications}}</p><p><b>Contact:</b> {{vendor.contact}}</p><br><a href="tel:{{vendor.contact}}">
+<button class="buybtn">Buy Now</button>
+</a></div></body>
+</html>
