@@ -39,7 +39,7 @@ def get_db_connection():
 # -----------------------------
 @app.route("/")
 def index():
-    return "Website working"
+    return render_template("index.html")
 
 
 # -----------------------------
