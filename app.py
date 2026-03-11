@@ -106,7 +106,7 @@ def vendor_score(v):
 # -----------------------------
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return "website working"
 
 
 # -----------------------------
