@@ -3,41 +3,27 @@
 <head>
     <title>Add Vendor</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 50px; }
-        input, textarea { width: 300px; padding: 5px; margin: 5px 0; }
-        button { padding: 8px 15px; margin-top: 10px; cursor: pointer; }
+        body { font-family: Arial; background: #f0f8ff; padding: 50px; }
+        form { background: #fff; max-width: 500px; margin: auto; padding: 20px; border-radius: 8px; }
+        input, select { width: 100%; padding: 10px; margin: 8px 0; }
+        button { padding: 10px 15px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 5px; }
+        button:hover { background: #218838; }
+        a { text-decoration:none; color:#007BFF; }
     </style>
 </head>
 <body>
-    <h1>Add Your Vendor</h1>
+    <h2>Add Vendor</h2>
     <form method="POST">
-        <label>Vendor Name:</label><br>
-        <input type="text" name="vendor_name" required><br>
-
-        <label>Item:</label><br>
-        <input type="text" name="item" required><br>
-
-        <label>Category:</label><br>
-        <input type="text" name="category" required><br>
-
-        <label>Price:</label><br>
-        <input type="number" step="0.01" name="price" required><br>
-
-        <label>GST Percent:</label><br>
-        <input type="number" step="0.01" name="gst_percent" required><br>
-
-        <label>Additional Charges:</label><br>
-        <input type="number" step="0.01" name="additional_charges" required><br>
-
-        <label>Specifications:</label><br>
-        <textarea name="specifications"></textarea><br>
-
-        <label>Contact:</label><br>
-        <input type="text" name="contact" required><br>
-
+        <input type="text" name="vendor_name" placeholder="Vendor Name" required>
+        <input type="text" name="item" placeholder="Item" required>
+        <input type="text" name="specifications" placeholder="Specifications" required>
+        <input type="number" name="price" placeholder="Price" required>
+        <input type="number" name="gst_percent" placeholder="GST (%)" required>
+        <input type="number" name="additional_charges" placeholder="Additional Charges" required>
+        <input type="text" name="contact" placeholder="Contact" required>
+        <input type="text" name="category" placeholder="Category" required>
         <button type="submit">Add Vendor</button>
     </form>
-    <br>
-    <a href="/vendors"><button>Back to Vendor List</button></a>
+    <p><a href="/vendors">Back to Vendor List</a></p>
 </body>
 </html>

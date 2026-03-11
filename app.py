@@ -1,19 +1,20 @@
-from flask import Flask, render_template, request, redirect, send_file, session
+from flask import Flask, render_template, request, redirect, session, send_file
 import psycopg2
 import psycopg2.extras
 import io
 from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
-app.secret_key = "vendor_secret_key"
+app.secret_key = "supersecretkey123"
+
 
 # -----------------------------
-# PostgreSQL connection
+# DATABASE CONFIG
 # -----------------------------
-DB_HOST = "db.xxxxxx.supabase.co"
-DB_NAME = "postgres"
+DB_HOST = "localhost"
+DB_NAME = "vendor_db"
 DB_USER = "postgres"
-DB_PASSWORD = "anuAnu58"28"
+DB_PASSWORD = "anushka28"
 
 
 def get_conn():
@@ -22,23 +23,68 @@ def get_conn():
         database=DB_NAME,
         user=DB_USER,
         password=DB_PASSWORD
-        port=DB_PORT,
-        sslmode="require"
     )
 
 
 # -----------------------------
-# Calculate total price
+# SAFE NUMBER CONVERSIONS
+# -----------------------------
+def to_float(val):
+    try:
+        return float(val)
+    except:
+        return 0.0
+
+
+def to_int(val):
+    try:
+        return int(val)
+    except:
+        return 0
+
+
+# -----------------------------
+# TOTAL PRICE CALCULATION
 # -----------------------------
 def calculate_total(v):
-    price = float(v['price'])
-    gst = price * float(v['gst_percent']) / 100
-    charges = float(v['additional_charges'])
+
+    price = to_float(v.get("price"))
+    gst_percent = to_float(v.get("gst_percent"))
+    charges = to_float(v.get("additional_charges"))
+
+    gst = price * gst_percent / 100
+
     return price + gst + charges
 
 
 # -----------------------------
-# Landing Page
+# AI VENDOR SCORE
+# -----------------------------
+def vendor_score(v):
+
+    total = to_float(v.get("total"))
+    rating = to_float(v.get("rating", 4))
+    delivery_days = to_int(v.get("delivery_days", 3))
+
+    if total <= 0:
+        price_score = 0
+    else:
+        price_score = 100000 / total
+
+    if delivery_days <= 0:
+        delivery_score = 0
+    else:
+        delivery_score = 50 / delivery_days
+
+    rating_score = rating * 20
+
+    score = price_score + rating_score + delivery_score
+
+    return round(score, 2)
+
+
+# -----------------------------
+# HOME
 # -----------------------------
 @app.route("/")
 def index():
@@ -46,28 +92,27 @@ def index():
 
 
 # -----------------------------
-# Signup
+# SIGNUP
 # -----------------------------
-@app.route("/signup", methods=["GET","POST"])
+@app.route("/signup", methods=["GET", "POST"])
 def signup():
 
-    if request.method=="POST":
+    if request.method == "POST":
 
-        name=request.form["name"]
-        email=request.form["email"]
-        mobile=request.form["mobile"]
-        password=request.form["password"]
+        name = request.form["name"]
+        email = request.form["email"]
+        mobile = request.form["mobile"]
+        password = request.form["password"]
 
-        conn=get_conn()
-        cur=conn.cursor()
+        conn = get_conn()
+        cur = conn.cursor()
 
         cur.execute(
-        "INSERT INTO users (name,email,mobile,password) VALUES (%s,%s,%s,%s)",
-        (name,email,mobile,password)
+            "INSERT INTO users (name,email,mobile,password) VALUES (%s,%s,%s,%s)",
+            (name, email, mobile, password)
         )
 
         conn.commit()
-
         cur.close()
         conn.close()
 
@@ -77,49 +122,50 @@ def signup():
 
 
 # -----------------------------
-# Login
+# LOGIN
 # -----------------------------
-@app.route("/login", methods=["GET","POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
 
-    if request.method=="POST":
+    if request.method == "POST":
 
-        email=request.form["email"]
-        password=request.form["password"]
+        email = request.form["email"]
+        password = request.form["password"]
 
-        conn=get_conn()
-        cur=conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        conn = get_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         cur.execute(
-        "SELECT * FROM users WHERE email=%s AND password=%s",
-        (email,password)
+            "SELECT * FROM users WHERE email=%s AND password=%s",
+            (email, password)
         )
 
-        user=cur.fetchone()
+        user = cur.fetchone()
 
         cur.close()
         conn.close()
 
         if user:
-            session["user"]=user["email"]
+            session["user"] = user["email"]
             return redirect("/vendors")
+
         else:
-            return "Invalid Login"
+            return "Invalid email or password"
 
     return render_template("login.html")
 
 
 # -----------------------------
-# Logout
+# LOGOUT
 # -----------------------------
 @app.route("/logout")
 def logout():
-    session.pop("user",None)
+    session.pop("user", None)
     return redirect("/login")
 
 
 # -----------------------------
-# Vendor List Page
+# VENDORS LIST
 # -----------------------------
 @app.route("/vendors")
 def vendors():
@@ -140,38 +186,26 @@ def vendors():
 
     for r in rows:
 
-        vendor = {
-            "id": r['id'],
-            "vendor_name": r['vendor_name'],
-            "item": r['item'],
-            "specifications": r['specifications'],
-            "price": float(r['price']),
-            "gst_percent": float(r['gst_percent']),
-            "additional_charges": float(r['additional_charges']),
-            "contact": r['contact'],
-            "category": r['category']
-        }
+        vendor = dict(r)
 
         vendor["total"] = calculate_total(vendor)
 
+        vendor["score"] = vendor_score(vendor)
+
         vendors_list.append(vendor)
 
-    vendors_list = sorted(vendors_list, key=lambda x: x["total"])
+    vendors_list = sorted(vendors_list, key=lambda x: x["score"], reverse=True)
 
     for i, v in enumerate(vendors_list):
         v["rank"] = i + 1
 
     best = vendors_list[0] if vendors_list else None
 
-    return render_template(
-        "vendors.html",
-        vendors=vendors_list,
-        best=best
-    )
+    return render_template("vendors.html", vendors=vendors_list, best=best)
 
 
 # -----------------------------
-# Vendor Detail Page
+# VENDOR DETAIL
 # -----------------------------
 @app.route("/vendor/<int:vendor_id>")
 def vendor_detail(vendor_id):
@@ -182,11 +216,7 @@ def vendor_detail(vendor_id):
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    cur.execute(
-        "SELECT * FROM vendor_details WHERE id = %s",
-        (vendor_id,)
-    )
-
+    cur.execute("SELECT * FROM vendor_details WHERE id=%s", (vendor_id,))
     r = cur.fetchone()
 
     cur.close()
@@ -195,31 +225,60 @@ def vendor_detail(vendor_id):
     if not r:
         return "Vendor not found"
 
-    vendor = {
-        "id": r['id'],
-        "vendor_name": r['vendor_name'],
-        "item": r['item'],
-        "specifications": r['specifications'],
-        "price": float(r['price']),
-        "gst_percent": float(r['gst_percent']),
-        "additional_charges": float(r['additional_charges']),
-        "contact": r['contact'],
-        "category": r['category']
-    }
+    vendor = dict(r)
 
     vendor["total"] = calculate_total(vendor)
+    vendor["score"] = vendor_score(vendor)
 
-    return render_template(
-        "vendor_detail.html",
-        vendor=vendor
-    )
+    return render_template("vendor_detail.html", vendor=vendor)
 
 
 # -----------------------------
-# Download PDF Report
+# ADD VENDOR
 # -----------------------------
-@app.route("/download/<int:vendor_id>")
-def download(vendor_id):
+@app.route("/add_vendor", methods=["GET", "POST"])
+def add_vendor():
+
+    if "user" not in session:
+        return redirect("/login")
+
+    if request.method == "POST":
+
+        vendor_name = request.form['vendor_name']
+        item = request.form['item']
+        specifications = request.form['specifications']
+        price = to_float(request.form['price'])
+        gst_percent = to_float(request.form['gst_percent'])
+        additional_charges = to_float(request.form['additional_charges'])
+        contact = request.form['contact']
+        category = request.form['category']
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            INSERT INTO vendor_details
+            (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
+        )
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return redirect("/vendors")
+
+    return render_template("add_vendor.html")
+
+
+# -----------------------------
+# EDIT VENDOR
+# -----------------------------
+@app.route("/edit_vendor/<int:vendor_id>", methods=["GET","POST"])
+def edit_vendor(vendor_id):
 
     if "user" not in session:
         return redirect("/login")
@@ -227,11 +286,74 @@ def download(vendor_id):
     conn = get_conn()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    cur.execute(
-        "SELECT * FROM vendor_details WHERE id = %s",
-        (vendor_id,)
-    )
+    if request.method == "POST":
 
+        vendor_name = request.form['vendor_name']
+        item = request.form['item']
+        specifications = request.form['specifications']
+        price = to_float(request.form['price'])
+        gst_percent = to_float(request.form['gst_percent'])
+        additional_charges = to_float(request.form['additional_charges'])
+        contact = request.form['contact']
+        category = request.form['category']
+
+        cur.execute("""
+        UPDATE vendor_details
+        SET vendor_name=%s,item=%s,specifications=%s,
+        price=%s,gst_percent=%s,additional_charges=%s,
+        contact=%s,category=%s
+        WHERE id=%s
+        """,
+        (vendor_name,item,specifications,price,gst_percent,
+         additional_charges,contact,category,vendor_id))
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return redirect("/vendors")
+
+    cur.execute("SELECT * FROM vendor_details WHERE id=%s",(vendor_id,))
+    vendor = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return render_template("edit_vendor.html",vendor=vendor)
+
+
+# -----------------------------
+# DELETE VENDOR
+# -----------------------------
+@app.route("/delete_vendor/<int:vendor_id>")
+def delete_vendor(vendor_id):
+
+    if "user" not in session:
+        return redirect("/login")
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM vendor_details WHERE id=%s",(vendor_id,))
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return redirect("/vendors")
+
+
+# -----------------------------
+# PDF DOWNLOAD
+# -----------------------------
+@app.route("/download/<int:vendor_id>")
+def download(vendor_id):
+
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    cur.execute("SELECT * FROM vendor_details WHERE id=%s",(vendor_id,))
     r = cur.fetchone()
 
     cur.close()
@@ -240,17 +362,7 @@ def download(vendor_id):
     if not r:
         return "Vendor not found"
 
-    vendor = {
-        "vendor_name": r['vendor_name'],
-        "item": r['item'],
-        "specifications": r['specifications'],
-        "price": float(r['price']),
-        "gst_percent": float(r['gst_percent']),
-        "additional_charges": float(r['additional_charges'],
-        ),
-        "contact": r['contact'],
-        "category": r['category']
-    }
+    vendor = dict(r)
 
     total = calculate_total(vendor)
 
@@ -258,6 +370,7 @@ def download(vendor_id):
     p = canvas.Canvas(buffer)
 
     p.drawString(200,780,"Vendor Purchase Report")
+
     p.drawString(100,740,f"Vendor: {vendor['vendor_name']}")
     p.drawString(100,720,f"Item: {vendor['item']}")
     p.drawString(100,700,f"Specifications: {vendor['specifications']}")
@@ -269,6 +382,7 @@ def download(vendor_id):
     p.drawString(100,580,f"Contact: {vendor['contact']}")
 
     p.save()
+
     buffer.seek(0)
 
     return send_file(
@@ -280,58 +394,7 @@ def download(vendor_id):
 
 
 # -----------------------------
-# Add Vendor
-# -----------------------------
-@app.route("/add_vendor", methods=["GET","POST"])
-def add_vendor():
-
-    if "user" not in session:
-        return redirect("/login")
-
-    if request.method == "POST":
-
-        vendor_name = request.form['vendor_name']
-        item = request.form['item']
-        specifications = request.form['specifications']
-        price = float(request.form['price'])
-        gst_percent = float(request.form['gst_percent'])
-        additional_charges = float(request.form['additional_charges'])
-        contact = request.form['contact']
-        category = request.form['category']
-
-        conn = get_conn()
-        cur = conn.cursor()
-
-        cur.execute(
-        """
-        INSERT INTO vendor_details
-        (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        """,
-        (
-        vendor_name,
-        item,
-        specifications,
-        price,
-        gst_percent,
-        additional_charges,
-        contact,
-        category
-        )
-        )
-
-        conn.commit()
-
-        cur.close()
-        conn.close()
-
-        return redirect("/vendors")
-
-    return render_template("add_vendor.html")
-
-
-# -----------------------------
-# Run App
+# RUN APP
 # -----------------------------
 if __name__ == "__main__":
     app.run(debug=True)

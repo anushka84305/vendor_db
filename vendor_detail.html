@@ -1,36 +1,27 @@
-<!DOCTYPE html><html>
-<head><title>Vendor Details</title><style>
-
-body{
-font-family:Arial;
-background:#f2f2f2;
-padding:40px;
-}
-
-.box{
-background:white;
-padding:25px;
-border-radius:10px;
-width:400px;
-margin:auto;
-box-shadow:0px 4px 10px rgba(0,0,0,0.2);
-}
-
-h2{
-text-align:center;
-}
-
-.buybtn{
-background:green;
-color:white;
-padding:10px 15px;
-border:none;
-border-radius:5px;
-cursor:pointer;
-font-size:16px;
-}
-
-</style></head><body><div class="box"><h2>Vendor Details</h2><p><b>Vendor:</b> {{vendor.vendor_name}}</p><p><b>Item:</b> {{vendor.item}}</p><p><b>Category:</b> {{vendor.category}}</p><p><b>Total Price:</b> {{vendor.total}}</p><p><b>Specifications:</b> {{vendor.specifications}}</p><p><b>Contact:</b> {{vendor.contact}}</p><br><a href="tel:{{vendor.contact}}">
-<button class="buybtn">Buy Now</button>
-</a></div></body>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vendor Detail</title>
+    <style>
+        body { font-family: Arial; background: #f0f8ff; padding: 20px; }
+        div.container { background: #fff; padding: 20px; border-radius: 8px; max-width: 600px; margin:auto; }
+        a { text-decoration:none; padding:5px 10px; background:#007BFF; color:white; border-radius:4px; }
+        a:hover { opacity:0.8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>{{vendor.vendor_name}}</h2>
+        <p><strong>Item:</strong> {{vendor.item}}</p>
+        <p><strong>Category:</strong> {{vendor.category}}</p>
+        <p><strong>Specifications:</strong> {{vendor.specifications}}</p>
+        <p><strong>Price:</strong> {{vendor.price}}</p>
+        <p><strong>GST:</strong> {{vendor.gst_percent}}</p>
+        <p><strong>Charges:</strong> {{vendor.additional_charges}}</p>
+        <p><strong>Total:</strong> {{vendor.total}}</p>
+        <p><strong>Contact:</strong> {{vendor.contact}}</p>
+        <a href="/download/{{vendor.id}}">Download PDF</a>
+        <a href="/vendors">Back to List</a>
+    </div>
+</body>
 </html>
