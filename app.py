@@ -2,19 +2,20 @@ from flask import Flask, render_template, request, redirect, session, send_file
 import psycopg2
 import psycopg2.extras
 import io
+import os
 from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey123"
 
+# -----------------------------
+# DATABASE CONFIG (Render friendly)
+# -----------------------------
 
-# -----------------------------
-# DATABASE CONFIG
-# -----------------------------
-DB_HOST = "localhost"
-DB_NAME = "vendor_db"
-DB_USER = "postgres"
-DB_PASSWORD = "anushka28"
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_NAME = os.getenv("DB_NAME", "vendor_db")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "anushka28")
 
 
 def get_conn():
@@ -29,6 +30,7 @@ def get_conn():
 # -----------------------------
 # SAFE NUMBER CONVERSIONS
 # -----------------------------
+
 def to_float(val):
     try:
         return float(val)
@@ -46,6 +48,7 @@ def to_int(val):
 # -----------------------------
 # TOTAL PRICE CALCULATION
 # -----------------------------
+
 def calculate_total(v):
 
     price = to_float(v.get("price"))
@@ -60,6 +63,7 @@ def calculate_total(v):
 # -----------------------------
 # AI VENDOR SCORE
 # -----------------------------
+
 def vendor_score(v):
 
     total = to_float(v.get("total"))
@@ -86,6 +90,7 @@ def vendor_score(v):
 # -----------------------------
 # HOME
 # -----------------------------
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -94,6 +99,7 @@ def index():
 # -----------------------------
 # SIGNUP
 # -----------------------------
+
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
 
@@ -124,6 +130,7 @@ def signup():
 # -----------------------------
 # LOGIN
 # -----------------------------
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
@@ -148,7 +155,6 @@ def login():
         if user:
             session["user"] = user["email"]
             return redirect("/vendors")
-
         else:
             return "Invalid email or password"
 
@@ -158,6 +164,7 @@ def login():
 # -----------------------------
 # LOGOUT
 # -----------------------------
+
 @app.route("/logout")
 def logout():
     session.pop("user", None)
@@ -167,6 +174,7 @@ def logout():
 # -----------------------------
 # VENDORS LIST
 # -----------------------------
+
 @app.route("/vendors")
 def vendors():
 
@@ -189,7 +197,6 @@ def vendors():
         vendor = dict(r)
 
         vendor["total"] = calculate_total(vendor)
-
         vendor["score"] = vendor_score(vendor)
 
         vendors_list.append(vendor)
@@ -207,6 +214,7 @@ def vendors():
 # -----------------------------
 # VENDOR DETAIL
 # -----------------------------
+
 @app.route("/vendor/<int:vendor_id>")
 def vendor_detail(vendor_id):
 
@@ -234,98 +242,9 @@ def vendor_detail(vendor_id):
 
 
 # -----------------------------
-# ADD VENDOR
-# -----------------------------
-@app.route("/add_vendor", methods=["GET", "POST"])
-def add_vendor():
-
-    if "user" not in session:
-        return redirect("/login")
-
-    if request.method == "POST":
-
-        vendor_name = request.form['vendor_name']
-        item = request.form['item']
-        specifications = request.form['specifications']
-        price = to_float(request.form['price'])
-        gst_percent = to_float(request.form['gst_percent'])
-        additional_charges = to_float(request.form['additional_charges'])
-        contact = request.form['contact']
-        category = request.form['category']
-
-        conn = get_conn()
-        cur = conn.cursor()
-
-        cur.execute(
-            """
-            INSERT INTO vendor_details
-            (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-            """,
-            (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
-        )
-
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        return redirect("/vendors")
-
-    return render_template("add_vendor.html")
-
-
-# -----------------------------
-# EDIT VENDOR
-# -----------------------------
-@app.route("/edit_vendor/<int:vendor_id>", methods=["GET","POST"])
-def edit_vendor(vendor_id):
-
-    if "user" not in session:
-        return redirect("/login")
-
-    conn = get_conn()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-    if request.method == "POST":
-
-        vendor_name = request.form['vendor_name']
-        item = request.form['item']
-        specifications = request.form['specifications']
-        price = to_float(request.form['price'])
-        gst_percent = to_float(request.form['gst_percent'])
-        additional_charges = to_float(request.form['additional_charges'])
-        contact = request.form['contact']
-        category = request.form['category']
-
-        cur.execute("""
-        UPDATE vendor_details
-        SET vendor_name=%s,item=%s,specifications=%s,
-        price=%s,gst_percent=%s,additional_charges=%s,
-        contact=%s,category=%s
-        WHERE id=%s
-        """,
-        (vendor_name,item,specifications,price,gst_percent,
-         additional_charges,contact,category,vendor_id))
-
-        conn.commit()
-
-        cur.close()
-        conn.close()
-
-        return redirect("/vendors")
-
-    cur.execute("SELECT * FROM vendor_details WHERE id=%s",(vendor_id,))
-    vendor = cur.fetchone()
-
-    cur.close()
-    conn.close()
-
-    return render_template("edit_vendor.html",vendor=vendor)
-
-
-# -----------------------------
 # DELETE VENDOR
 # -----------------------------
+
 @app.route("/delete_vendor/<int:vendor_id>")
 def delete_vendor(vendor_id):
 
@@ -347,6 +266,7 @@ def delete_vendor(vendor_id):
 # -----------------------------
 # PDF DOWNLOAD
 # -----------------------------
+
 @app.route("/download/<int:vendor_id>")
 def download(vendor_id):
 
@@ -393,8 +313,5 @@ def download(vendor_id):
     )
 
 
-# -----------------------------
-# RUN APP
-# -----------------------------
 if __name__ == "__main__":
     app.run(debug=True)
