@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, send_file
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import io
 from reportlab.pdfgen import canvas
 
@@ -8,48 +9,21 @@ app.secret_key = "supersecretkey123"
 
 
 # -----------------------------
-# DATABASE CONNECTION
+# DATABASE CONFIG
 # -----------------------------
+DB_HOST = "localhost"
+DB_NAME = "vendor_db"
+DB_USER = "postgres"
+DB_PASSWORD = "anushka28"
+
+
 def get_conn():
-    conn = sqlite3.connect("vendor.db")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-# -----------------------------
-# CREATE TABLES
-# -----------------------------
-def create_tables():
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS users(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        email TEXT,
-        mobile TEXT,
-        password TEXT
+    return psycopg2.connect(
+        host=DB_HOST,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
     )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS vendor_details(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        vendor_name TEXT,
-        item TEXT,
-        specifications TEXT,
-        price REAL,
-        gst_percent REAL,
-        additional_charges REAL,
-        contact TEXT,
-        category TEXT
-    )
-    """)
-
-    conn.commit()
-    conn.close()
 
 
 # -----------------------------
@@ -70,13 +44,13 @@ def to_int(val):
 
 
 # -----------------------------
-# TOTAL PRICE
+# TOTAL PRICE CALCULATION
 # -----------------------------
 def calculate_total(v):
 
-    price = to_float(v["price"])
-    gst_percent = to_float(v["gst_percent"])
-    charges = to_float(v["additional_charges"])
+    price = to_float(v.get("price"))
+    gst_percent = to_float(v.get("gst_percent"))
+    charges = to_float(v.get("additional_charges"))
 
     gst = price * gst_percent / 100
 
@@ -84,16 +58,24 @@ def calculate_total(v):
 
 
 # -----------------------------
-# AI SCORE
+# AI VENDOR SCORE
 # -----------------------------
 def vendor_score(v):
 
-    total = to_float(v["price"])
-    rating = 4
-    delivery_days = 3
+    total = to_float(v.get("total"))
+    rating = to_float(v.get("rating", 4))
+    delivery_days = to_int(v.get("delivery_days", 3))
 
-    price_score = 100000 / total if total > 0 else 0
-    delivery_score = 50 / delivery_days
+    if total <= 0:
+        price_score = 0
+    else:
+        price_score = 100000 / total
+
+    if delivery_days <= 0:
+        delivery_score = 0
+    else:
+        delivery_score = 50 / delivery_days
+
     rating_score = rating * 20
 
     score = price_score + rating_score + delivery_score
@@ -106,7 +88,7 @@ def vendor_score(v):
 # -----------------------------
 @app.route("/")
 def index():
-    return "website working"
+    return render_template("index.html")
 
 
 # -----------------------------
@@ -126,11 +108,12 @@ def signup():
         cur = conn.cursor()
 
         cur.execute(
-            "INSERT INTO users (name,email,mobile,password) VALUES (?,?,?,?)",
+            "INSERT INTO users (name,email,mobile,password) VALUES (%s,%s,%s,%s)",
             (name, email, mobile, password)
         )
 
         conn.commit()
+        cur.close()
         conn.close()
 
         return redirect("/login")
@@ -150,18 +133,20 @@ def login():
         password = request.form["password"]
 
         conn = get_conn()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         cur.execute(
-            "SELECT * FROM users WHERE email=? AND password=?",
+            "SELECT * FROM users WHERE email=%s AND password=%s",
             (email, password)
         )
 
         user = cur.fetchone()
+
+        cur.close()
         conn.close()
 
         if user:
-            session["user"] = email
+            session["user"] = user["email"]
             return redirect("/vendors")
 
         else:
@@ -189,11 +174,12 @@ def vendors():
         return redirect("/login")
 
     conn = get_conn()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     cur.execute("SELECT * FROM vendor_details")
     rows = cur.fetchall()
 
+    cur.close()
     conn.close()
 
     vendors_list = []
@@ -203,6 +189,7 @@ def vendors():
         vendor = dict(r)
 
         vendor["total"] = calculate_total(vendor)
+
         vendor["score"] = vendor_score(vendor)
 
         vendors_list.append(vendor)
@@ -227,11 +214,12 @@ def vendor_detail(vendor_id):
         return redirect("/login")
 
     conn = get_conn()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    cur.execute("SELECT * FROM vendor_details WHERE id=?", (vendor_id,))
+    cur.execute("SELECT * FROM vendor_details WHERE id=%s", (vendor_id,))
     r = cur.fetchone()
 
+    cur.close()
     conn.close()
 
     if not r:
@@ -268,14 +256,17 @@ def add_vendor():
         conn = get_conn()
         cur = conn.cursor()
 
-        cur.execute("""
-        INSERT INTO vendor_details
-        (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
-        VALUES (?,?,?,?,?,?,?,?)
-        """,
-        (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category))
+        cur.execute(
+            """
+            INSERT INTO vendor_details
+            (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (vendor_name,item,specifications,price,gst_percent,additional_charges,contact,category)
+        )
 
         conn.commit()
+        cur.close()
         conn.close()
 
         return redirect("/vendors")
@@ -293,7 +284,7 @@ def edit_vendor(vendor_id):
         return redirect("/login")
 
     conn = get_conn()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     if request.method == "POST":
 
@@ -308,22 +299,25 @@ def edit_vendor(vendor_id):
 
         cur.execute("""
         UPDATE vendor_details
-        SET vendor_name=?,item=?,specifications=?,
-        price=?,gst_percent=?,additional_charges=?,
-        contact=?,category=?
-        WHERE id=?
+        SET vendor_name=%s,item=%s,specifications=%s,
+        price=%s,gst_percent=%s,additional_charges=%s,
+        contact=%s,category=%s
+        WHERE id=%s
         """,
         (vendor_name,item,specifications,price,gst_percent,
          additional_charges,contact,category,vendor_id))
 
         conn.commit()
+
+        cur.close()
         conn.close()
 
         return redirect("/vendors")
 
-    cur.execute("SELECT * FROM vendor_details WHERE id=?", (vendor_id,))
+    cur.execute("SELECT * FROM vendor_details WHERE id=%s",(vendor_id,))
     vendor = cur.fetchone()
 
+    cur.close()
     conn.close()
 
     return render_template("edit_vendor.html",vendor=vendor)
@@ -341,8 +335,10 @@ def delete_vendor(vendor_id):
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("DELETE FROM vendor_details WHERE id=?", (vendor_id,))
+    cur.execute("DELETE FROM vendor_details WHERE id=%s",(vendor_id,))
     conn.commit()
+
+    cur.close()
     conn.close()
 
     return redirect("/vendors")
@@ -355,17 +351,19 @@ def delete_vendor(vendor_id):
 def download(vendor_id):
 
     conn = get_conn()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    cur.execute("SELECT * FROM vendor_details WHERE id=?", (vendor_id,))
+    cur.execute("SELECT * FROM vendor_details WHERE id=%s",(vendor_id,))
     r = cur.fetchone()
 
+    cur.close()
     conn.close()
 
     if not r:
         return "Vendor not found"
 
     vendor = dict(r)
+
     total = calculate_total(vendor)
 
     buffer = io.BytesIO()
@@ -399,5 +397,4 @@ def download(vendor_id):
 # RUN APP
 # -----------------------------
 if __name__ == "__main__":
-    create_tables()
     app.run(debug=True)

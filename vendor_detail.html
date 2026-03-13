@@ -1,27 +1,68 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html><html>
 <head>
-    <title>Vendor Detail</title>
-    <style>
-        body { font-family: Arial; background: #f0f8ff; padding: 20px; }
-        div.container { background: #fff; padding: 20px; border-radius: 8px; max-width: 600px; margin:auto; }
-        a { text-decoration:none; padding:5px 10px; background:#007BFF; color:white; border-radius:4px; }
-        a:hover { opacity:0.8; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>{{vendor.vendor_name}}</h2>
-        <p><strong>Item:</strong> {{vendor.item}}</p>
-        <p><strong>Category:</strong> {{vendor.category}}</p>
-        <p><strong>Specifications:</strong> {{vendor.specifications}}</p>
-        <p><strong>Price:</strong> {{vendor.price}}</p>
-        <p><strong>GST:</strong> {{vendor.gst_percent}}</p>
-        <p><strong>Charges:</strong> {{vendor.additional_charges}}</p>
-        <p><strong>Total:</strong> {{vendor.total}}</p>
-        <p><strong>Contact:</strong> {{vendor.contact}}</p>
-        <a href="/download/{{vendor.id}}">Download PDF</a>
-        <a href="/vendors">Back to List</a>
-    </div>
-</body>
+    <title>Vendor Detail</title><meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+    body{
+        font-family: Arial, sans-serif;
+        background:#f0f8ff;
+        margin:0;
+        height:100vh;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+    }
+
+    .container{
+        background:white;
+        padding:30px;
+        border-radius:8px;
+        width:450px;
+        box-shadow:0 0 12px rgba(0,0,0,0.15);
+    }
+
+    h2{
+        margin-top:0;
+        color:#333;
+    }
+
+    p{
+        margin:8px 0;
+    }
+
+    .total{
+        font-size:18px;
+        font-weight:bold;
+        color:#28a745;
+    }
+
+    .btn{
+        display:inline-block;
+        margin-top:15px;
+        padding:8px 15px;
+        text-decoration:none;
+        color:white;
+        border-radius:5px;
+    }
+
+    .pdf{
+        background:#dc3545;
+    }
+
+    .back{
+        background:#007BFF;
+    }
+
+    .btn:hover{
+        opacity:0.85;
+    }
+
+</style>
+
+</head><body><div class="container"><h2>{{vendor.vendor_name}}</h2><p><strong>Item:</strong> {{vendor.item}}</p><p><strong>Category:</strong> {{vendor.category}}</p><p><strong>Specifications:</strong> {{vendor.specifications}}</p><p><strong>Price:</strong> {{vendor.price}}</p><p><strong>GST:</strong> {{vendor.gst_percent}} %</p><p><strong>Additional Charges:</strong> {{vendor.additional_charges}}</p><p class="total">Total Price: {{vendor.total}}</p><p><strong>Contact:</strong> {{vendor.contact}}</p><a class="btn pdf" href="/download/{{vendor.id}}">Download PDF</a>
+
+<a class="btn back" href="/vendors">Back to List</a>
+
+</div></body>
 </html>
