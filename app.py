@@ -12,19 +12,10 @@ app.secret_key = "supersecretkey123"
 # DATABASE CONFIG (Render friendly)
 # -----------------------------
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_NAME = os.getenv("DB_NAME", "vendor_db")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "anushka28")
-
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_conn():
-    return psycopg2.connect(
-        host=DB_HOST,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
-    )
+    return psycopg2.connect(DATABASE_URL)
 
 
 # -----------------------------
